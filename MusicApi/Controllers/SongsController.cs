@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MusicApi.Data;
 using MusicApi.Models;
 
 namespace MusicApi.Controllers
@@ -8,45 +10,79 @@ namespace MusicApi.Controllers
     [ApiController]
     public class SongsController : ControllerBase
     {
-        private readonly List<Song> songList = new List<Song>() {
-            new Song() { Id = 1, Title="Song 1", Language="English"},
-            new Song() { Id = 2, Title="Song 2", Language="English"},
-            new Song() { Id = 3, Title="Song 3", Language="Spanish"},
-        };
+        private readonly ApiDbContext _db;
+
+        public SongsController(ApiDbContext db)
+        {
+            _db = db;
+        }
 
         [HttpGet]
-        public IEnumerable<Song> Get()
+        public async Task<IActionResult> Get()
         {
-            return songList;
+            var songs = await _db.Songs.ToListAsync();
+            return Ok(songs);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            var song = await _db.Songs.FindAsync(id);
+
+            if (song != null)
+            {
+                return Ok(song);
+            }
+
+            return NotFound();
         }
 
         [HttpPost]
-        public void Post(Song song)
+        public async Task<IActionResult> Post(Song song)
         {
-            songList.Add(song);
+            _db.Songs.Add(song);
+            await _db.SaveChangesAsync();
+            return Ok();
         }
 
         [HttpPut("{id}")]
-        public void Put(int id, Song song)
+        public async Task<IActionResult> Put(int id, Song song)
         {
-            Song? found = songList.Find(s => s.Id == id);
-
-            if (found != null) 
-            { 
-                found.Title = song.Title;
-                found.Language = song.Language;
-            }
-        }
-
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
-            Song? found = songList.Find(s => s.Id == id);
+            Song? found = await _db.Songs.FindAsync(id);
 
             if (found != null)
             {
-                songList.Remove(found);
+                found.Title = song.Title;
+                found.Language = song.Language;
+                found.Duration = song.Duration;
+
+                await _db.SaveChangesAsync();
+
+                return Ok();
             }
+
+            return NotFound();
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            Song? found = await _db.Songs.FindAsync(id);
+
+            if (found != null)
+            {
+                _db.Songs.Remove(found);
+                await _db.SaveChangesAsync();
+                return Ok();
+            }
+
+            return NotFound();
+        }
+
+        [HttpGet("[action]/{id}")]
+        public int Echo(int id)
+        {
+            return id;
         }
     }
 }
